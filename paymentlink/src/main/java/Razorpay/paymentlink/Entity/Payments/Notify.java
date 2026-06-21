@@ -9,11 +9,11 @@ import lombok.Data;
 public class Notify {
 
     @Id
-    @Column(name = "notify_id")
+    @Column(name = "notify_id", length = 50)
     private String notifyId;
 
-    @Column(name = "payment_link_id")
-    private String paymentLinkId; // Manual string link back to PaymentLink
+    @Column(name = "payment_link_id", nullable = false, length = 50)
+    private String paymentLinkId; 
 
     @Column(name = "email")
     private Boolean email;

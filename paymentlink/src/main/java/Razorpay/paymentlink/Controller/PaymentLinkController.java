@@ -1,27 +1,16 @@
 package Razorpay.paymentlink.Controller;
 
-
-import Razorpay.paymentlink.DTOs.PaymentLinkFetchItemDto;
-//import Razorpay.paymentlink.DTOs.PaymentLinkListResponseDto;
-//import Razorpay.paymentlink.DTOs.PaymentLinkNotifyD;
+import Razorpay.paymentlink.DTOs.PaymentLinkListResponse;
 import Razorpay.paymentlink.DTOs.PaymentLinkRequest;
 import Razorpay.paymentlink.DTOs.PaymentLinkResponse;
-import Razorpay.paymentlink.Entity.Payments.PaymentLink;
-import Razorpay.paymentlink.Entity.Payments.PaymentLinkk;
-//import Razorpay.paymentlink.Entity.Payments.PaymentLinkk;
+import Razorpay.paymentlink.DTOs.PaymentLinkUpdateRequest;
 import Razorpay.paymentlink.Service.PaymentLinkService;
 import lombok.RequiredArgsConstructor;
 
-import java.util.ArrayList;
-//import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-//import java.util.stream.Collectors;
-//import java.util.stream.Collectors;
+//import java.util.HashMap;
 
-//import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
+//import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -33,117 +22,160 @@ public class PaymentLinkController {
     //private static final PaymentLinkk PaymentLinkk = null;
     private final PaymentLinkService paymentLinkService;
 
-     @PostMapping
+   @PostMapping("/")
     public ResponseEntity<PaymentLinkResponse> createPaymentLink(@RequestBody PaymentLinkRequest request) {
-        PaymentLinkResponse response = paymentLinkService.createStandardPaymentLink(request);
-        return new ResponseEntity<>(response, HttpStatus.CREATED);
+        
+        // Dynamic Routing: Check if the payload explicitly requests a UPI Link
+        if (Boolean.TRUE.equals(request.getUpiLink())) {
+            PaymentLinkResponse upiResponse = paymentLinkService.createUpiPaymentLink(request);
+            return new ResponseEntity<>(upiResponse, HttpStatus.CREATED);
+        }
+        
+        // Fallback: Default to standard payment link processing flow
+        PaymentLinkResponse standardResponse = paymentLinkService.createStandardPaymentLink(request);
+        return new ResponseEntity<>(standardResponse, HttpStatus.CREATED);
     }
 
-    @GetMapping("/")
-    public ResponseEntity<Map<String, Object>> getAllPaymentLinks(
-            @RequestParam(value = "reference_id", required = false) String referenceId) {
-        
-        List<PaymentLink> links = paymentLinkService.getAllPaymentLinks(referenceId);
-        
-        Map<String, Object> response = new HashMap<>();
-        response.put("payment_links", links);
-        
-        return new ResponseEntity<>(response, HttpStatus.OK);
+  
+    // Add this method to PaymentLinkController.java
+@GetMapping("/")
+public ResponseEntity<PaymentLinkListResponse> getAllPaymentLinks(
+        @RequestParam(value = "reference_id", required = false) String referenceId,
+        @RequestParam(value = "payment_id", required = false) String paymentId) {
+    
+    // Razorpay constraint check: reference_id max character length is 40
+    if (referenceId != null && referenceId.length() > 40) {
+        throw new IllegalArgumentException("The receipt may not be greater than 40 characters.");
     }
-/* 
+    
+    PaymentLinkListResponse response = paymentLinkService.getAllPaymentLinks(referenceId, paymentId);
+    return ResponseEntity.ok(response);
+}
 
-// --- New Endpoint: Fetch Single Item with Path Variable ---
-    @GetMapping("/{id}")
-    public ResponseEntity<PaymentLinkFetchItemDto> getPaymentLinkById(@PathVariable("id") String plinkId) {
+
+     @GetMapping("/{id}")
+    public ResponseEntity<PaymentLinkResponse> getPaymentLinkById(@PathVariable("id") String id) {
         
-        // 1. Fetch single entity from our validated business layer
-        PaymentLink entity = paymentLinkService.getPaymentLinkById(plinkId);
+        // 1. Razorpay global sanity check validation rule
+        if (id == null || !id.startsWith("plink_")) {
+            throw new IllegalArgumentException("invalid input [strippedId] = [" + (id != null ? id : "null") + "]");
+        }
         
-        // 2. Map directly into our clean, annotation-free camelCase DTO
-        PaymentLinkFetchItemDto responseDto = new PaymentLinkFetchItemDto(entity);
+        // 2. Retrieve the processed response from the service layer
+        PaymentLinkResponse response = paymentLinkService.getPaymentLinkById(id);
         
-        return new ResponseEntity<>(responseDto, HttpStatus.OK);
-    }*/
-   // --- Fixed Endpoint: Fetch Single Item with Path Variable ---
-@GetMapping("/{id}")
-public ResponseEntity<?> getPaymentLinkById(@PathVariable("id") String plinkId) {
+        return ResponseEntity.ok(response);
+    }
+
+
+
+     @PatchMapping("/{id}")
+public ResponseEntity<?> updatePaymentLink1(
+        @PathVariable("id") String id, 
+        @RequestBody PaymentLinkUpdateRequest request) {
     try {
-        // 1. Fetch the raw core entity from your service layer
-        PaymentLink entity = paymentLinkService.getPaymentLinkById(plinkId);
+        // 1. Global Sanity Checks
+        if (id == null || !id.startsWith("plink_")) {
+            throw new IllegalArgumentException("invalid input [strippedId] = [" + (id != null ? id : "null") + "]");
+        }
+        if (request.getReferenceId() != null && request.getReferenceId().length() > 40) {
+            throw new IllegalArgumentException("The receipt may not be greater than 40 characters.");
+        }
+
+        // 2. Fetch the existing link to check its type dynamically
+        // (Assuming getPaymentLinkById returns an object with an isUpiLink() method)
+        PaymentLinkResponse existingLink = paymentLinkService.getPaymentLinkById(id);
         
-        // 2. Pass it safely into the corrected DTO constructor
-        PaymentLinkFetchItemDto responseDto = new PaymentLinkFetchItemDto(entity);
+        PaymentLinkResponse updatedLink;
+        if (existingLink.getUpiLink()) {
+            // Internally routes to your UPI business logic rules
+            updatedLink = paymentLinkService.updateUpiPaymentLink(id, request);
+        } else {
+            // Internally routes to your Standard business logic rules
+            updatedLink = paymentLinkService.updatePaymentLink(id, request);
+        }
         
-        // 3. Return response with 200 OK status
-        return new ResponseEntity<>(responseDto, HttpStatus.OK);
+        return ResponseEntity.ok(updatedLink);
 
     } catch (IllegalArgumentException e) {
-        // Simple manual error handler matching Razorpay documentation structure
-        Map<String, Object> errorDetails = new HashMap<>();
-        errorDetails.put("code", "BAD_REQUEST_ERROR");
-        errorDetails.put("description", e.getMessage()); // Will catch "invalid input..." OR "The id provided does not exist"
-        errorDetails.put("metadata", new ArrayList<>());
-        errorDetails.put("reason", null);
-        errorDetails.put("source", null);
-        errorDetails.put("step", null);
-
-        Map<String, Object> errorResponse = new HashMap<>();
-        errorResponse.put("error", errorDetails);
-
-        return new ResponseEntity<>(errorResponse, HttpStatus.BAD_REQUEST);
+        // Structured Razorpay Business Logic failure message (400 Bad Request)
+        java.util.Map<String, Object> errorMap = new java.util.HashMap<>();
+        java.util.Map<String, String> details = new java.util.HashMap<>();
+        details.put("code", "BAD_REQUEST_ERROR");
+        details.put("description", e.getMessage());
+        errorMap.put("error", details);
+        return ResponseEntity.status(400).body(errorMap);
+        
+    } catch (RuntimeException e) {
+        // Resource missing or system error handler (404 Not Found)
+        java.util.Map<String, Object> errorMap = new java.util.HashMap<>();
+        java.util.Map<String, String> details = new java.util.HashMap<>();
+        details.put("code", "BAD_REQUEST_ERROR");
+        details.put("description", e.getMessage());
+        errorMap.put("error", details);
+        return ResponseEntity.status(404).body(errorMap);
     }
 }
-   
+
+    
+
+
+    @PatchMapping("/stdUpdate/{id}")
+    public ResponseEntity<?> updatePaymentLink(@PathVariable String id, @RequestBody PaymentLinkUpdateRequest request) {
+        try {
+            PaymentLinkResponse updatedLink = paymentLinkService.updatePaymentLink(id, request);
+            return ResponseEntity.ok(updatedLink);
+        } catch (IllegalArgumentException e) {
+            // Replicating a structured Razorpay Business Logic failure message
+            java.util.Map<String, Object> errorMap = new java.util.HashMap<>();
+            java.util.Map<String, String> details = new java.util.HashMap<>();
+            details.put("code", "BAD_REQUEST_ERROR");
+            details.put("description", e.getMessage());
+            errorMap.put("error", details);
+            return ResponseEntity.status(400).body(errorMap);
+        } catch (RuntimeException e) {
+            java.util.Map<String, Object> errorMap = new java.util.HashMap<>();
+            java.util.Map<String, String> details = new java.util.HashMap<>();
+            details.put("code", "BAD_REQUEST_ERROR");
+            details.put("description", e.getMessage());
+            errorMap.put("error", details);
+            return ResponseEntity.status(404).body(errorMap);
+        }
+    }
+
+/**
+ * POST Cancel Payment Link upi Endpoint
+ * POST /api/v1/payment-links/{id}/cancel
+ */
+@PostMapping("/{id}/cancel")
+public ResponseEntity<?> cancelPaymentLink(@PathVariable("id") String id) {
+    try {
+        // 1. Prefix Sanity Check Validation
+        if (id == null || !id.startsWith("plink_")) {
+            throw new IllegalArgumentException("invalid input [strippedId] = [" + (id != null ? id : "null") + "]");
+        }
+
+        // 2. Execute cancellation via service
+        PaymentLinkResponse response = paymentLinkService.cancelPaymentLink(id);
+        return ResponseEntity.ok(response);
+
+    } catch (IllegalArgumentException e) {
+        // Structured Razorpay Business Logic failure structure (400 Bad Request)
+        java.util.Map<String, Object> errorMap = new java.util.HashMap<>();
+        java.util.Map<String, String> details = new java.util.HashMap<>();
+        details.put("code", "BAD_REQUEST_ERROR");
+        details.put("description", e.getMessage());
+        errorMap.put("error", details);
+        return ResponseEntity.status(400).body(errorMap);
+        
+    } catch (RuntimeException e) {
+        // Fallback catch-all for missing items
+        java.util.Map<String, Object> errorMap = new java.util.HashMap<>();
+        java.util.Map<String, String> details = new java.util.HashMap<>();
+        details.put("code", "BAD_REQUEST_ERROR");
+        details.put("description", e.getMessage());
+        errorMap.put("error", details);
+        return ResponseEntity.status(404).body(errorMap);
+    }
 }
-
-
-
-
-/* 
-
-
-    // Global Exception Handler local to this controller for the 40 character validation rule
-    @ExceptionHandler(IllegalArgumentException.class)
-    public ResponseEntity<Map<String, Object>> handleValidationExceptions(IllegalArgumentException ex) {
-        Map<String, Object> errorBody = new HashMap<>();
-        Map<String, String> innerError = new HashMap<>();
-        
-        innerError.put("code", "BAD_REQUEST_ERROR");
-        innerError.put("description", ex.getMessage());
-        
-        errorBody.put("error", innerError);
-        return new ResponseEntity<>(errorBody, HttpStatus.BAD_REQUEST);
-    }
-
-
-
-    // --- New Endpoint: Fetch Single Item with Path Variable ---
-    @GetMapping("/{id}")
-    public ResponseEntity<PaymentLinkFetchItemDto> getPaymentLinkById(@PathVariable("id") String plinkId) {
-        
-        // 1. Fetch single entity from our validated business layer
-        PaymentLink entity = paymentLinkService.getPaymentLinkById(plinkId);
-        
-        // 2. Map directly into our clean, annotation-free camelCase DTO
-        PaymentLinkFetchItemDto responseDto = new PaymentLinkFetchItemDto(PaymentLinkk );
-        
-        return new ResponseEntity<>(responseDto, HttpStatus.OK);
-    }
-/* 
-    // --- Global Error Handler local to this controller class ---
-    @ExceptionHandler({IllegalArgumentException.class, NullPointerException.class})
-    public ResponseEntity<Map<String, Object>> handleEndpointExceptions(Exception ex) {
-        Map<String, Object> errorRoot = new HashMap<>();
-        Map<String, Object> errorDetails = new HashMap<>();
-        
-        errorDetails.put("code", "BAD_REQUEST_ERROR");
-        errorDetails.put("description", ex.getMessage());
-        errorDetails.put("metadata", new String[]{});
-        errorDetails.put("reason", null);
-        errorDetails.put("source", null);
-        errorDetails.put("step", null);
-        
-        errorRoot.put("error", errorDetails);
-        return new ResponseEntity<>(errorRoot, HttpStatus.BAD_REQUEST);
-    }
-*/
+}

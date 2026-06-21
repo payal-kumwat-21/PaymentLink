@@ -1,81 +1,95 @@
 package Razorpay.paymentlink.Entity.Payments;
 
 import jakarta.persistence.*;
-import lombok.Data;
+import lombok.Getter;
+import lombok.Setter;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
+
 @Entity
-@Data
+@Getter
+@Setter
 @Table(name = "payment_links")
-@Access(AccessType.FIELD) // <-- FORCE HIBERNATE TO ONLY SCAN FIELDS, IGNORING CUSTOM GETTERS
 public class PaymentLink {
 
     @Id
     @Column(name = "plink_id", nullable = false, length = 50) 
-    private String plinkId; 
+    private String id; // Matches "plink_ExjpAUN3gVHrPJ"
 
     @Column(name = "id_pk", insertable = false, updatable = false)
     private Long databaseId; 
 
-    @Column
-    private Boolean acceptPartial;
+    @Column(name = "accept_partial", nullable = false)
+    private boolean acceptPartial = false;
 
-    @Column
+    @Column(name = "amount")
     private Integer amount;
-
-    @Column
+ 
+    @Column(name = "amount_paid")
     private Integer amountPaid;
 
-    @Column
+    @Column(name = "callback_method")
     private String callbackMethod;
 
-    @Column(length = 500)
+    @Column(name = "callback_url", length = 500)
     private String callbackUrl;
 
-    @Column
+    @Column(name = "cancelled_at")
     private Long cancelledAt;
 
-    @Column
+    @Column(name = "created_at")
     private Long createdAt;
 
-    @Column(length = 10)
+    @Column(name = "currency", length = 10)
     private String currency;
 
-    @Column(length = 500)
+    @Column(name = "description", length = 500)
     private String description;
-
-    @Column
+ 
+    @Column(name = "expire_by")
     private Long expireBy;
 
-    @Column
+    @Column(name = "expired_at")
     private Long expiredAt;
 
-    @Column
+    @Column(name = "first_min_partial_amount")
     private Integer firstMinPartialAmount;
 
-    @Column
-    private String referenceId;
+   // @Column(name = "reference_id")
+    //private String referenceId;
 
-    @Column
-    private Boolean reminderEnable;
+    // Inside your PaymentLinkRequest class
 
-    @Column
+@JsonProperty("reference_id") // Tells Jackson to catch the snake_case payload input
+private String referenceId;
+
+// Ensure your getter/setter matches it perfectly:
+public String getReferenceId() { return referenceId; }
+public void setReferenceId(String referenceId) { this.referenceId = referenceId; }
+
+    @Column(name = "reminder_enable", nullable = false)
+    private boolean reminderEnable = false;
+
+    @Column(name = "short_url")
     private String shortUrl;
 
-    @Column(length = 30)
+    @Column(name = "status", length = 30)
     private String status;
-
-    @Column
+ 
+    @Column(name = "updated_at")
     private Long updatedAt;
 
-    @Column
+    @Column(name = "user_id")
     private String userId;
 
-    @Column
-    private String orderId;
+
+// Add this field inside your existing PaymentLink model class implrment
+@Column(name = "hide_topbar")
+private boolean hideTopbar = false;
 
     @ElementCollection(fetch = FetchType.EAGER)
     @CollectionTable(name = "payment_link_notes", joinColumns = @JoinColumn(name = "payment_link_id"))
@@ -88,24 +102,22 @@ public class PaymentLink {
     @Column(name = "payment_id")
     private List<String> payments = new ArrayList<>();
 
-    @Column
-    private boolean upiLink;
-
+    @Column(name = "upiLink", nullable = false) // Match the camelCase column name exactly
+private boolean upiLink = false;
+  // -----------------------------------------------------------------
+    // CUSTOM ALIAS METHODS
     // -----------------------------------------------------------------
-    // Existing Custom Methods (Safe from Hibernate processing now)
-    // -----------------------------------------------------------------
-    public String getPlinkId() { return this.plinkId; }
-    public void setPlinkId(String plinkId) { this.plinkId = plinkId; }
+    public String getPlinkId() { 
+        return this.id; 
+    }
 
-    public String getOrderId() { return orderId; }
-    public void setOrderId(String orderId) { this.orderId = orderId; }
+    public void setPlinkId(String plinkId) { 
+        return; // Fixed structural tracking override
+    }
+    
+    public void updatePlinkIdDirectly(String plinkId) {
+        this.id = plinkId;
+    }
 
-    public Boolean isAcceptPartial() { return acceptPartial != null ? acceptPartial : false; }
-    public void setAcceptPartial(Boolean acceptPartial) { this.acceptPartial = acceptPartial; }
-
-    public boolean isUpiLink() { return upiLink; }
-    public void setUpiLink(boolean upiLink) { this.upiLink = upiLink; }
-
-    public Boolean isReminderEnable() { return reminderEnable != null ? reminderEnable : false; }
-    public void setReminderEnable(Boolean reminderEnable) { this.reminderEnable = reminderEnable; }
-}
+    
+}   

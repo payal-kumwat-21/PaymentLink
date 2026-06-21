@@ -32,7 +32,8 @@ public class PaymentLinkResponse {
     private NotifyDTO notify;
     private RemindersDTO reminders;
     private Map<String, String> notes;
-    private List<PaymentAttemptDTO> payments; // Populated with captured history array, null otherwise
-} 
-
+    private List<PaymentAttemptDTO> payments;
+     // Populated with captured history array, null otherwise
+    private boolean hideTopbar;
+    } 
 

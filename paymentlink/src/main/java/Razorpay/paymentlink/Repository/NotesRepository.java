@@ -9,4 +9,6 @@ import java.util.List;
 public interface NotesRepository extends JpaRepository<Notes, String> {
     // Allows your service layer to quickly retrieve all notes associated with a payment link
     List<Notes> findByPaymentLinkId(String paymentLinkId);
+    //NotesRepository exposes a deletion hook declaration for update endpoint
+    void deleteByPaymentLinkId(String paymentLinkId);
 }
