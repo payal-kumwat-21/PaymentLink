@@ -610,37 +610,6 @@ public PaymentLinkResponse updateUpiPaymentLink(String id, PaymentLinkUpdateRequ
     return this.getPaymentLinkById(id);
 }
 
-/* *
-    @Override
-    @Transactional
-    public PaymentLinkResponse cancelPaymentLink(String id) {
-        // 1. Find the link or fail
-        PaymentLink paymentLink = paymentLinkRepository.findById(id)
-            .orElseThrow(() -> new RuntimeException("The id provided does not exist"));
-
-        String status = paymentLink.getStatus().toLowerCase();
-
-        // 2. Razorpay Rule Guard A: Check if already paid or partially paid
-        if (status.equals("paid") || status.equals("partially_paid")) {
-            throw new IllegalArgumentException("cannot cancel or expire an already paid/partially paid link");
-        }
-
-        // 3. Razorpay Rule Guard B: Check if already expired or cancelled
-        if (status.equals("expired") || status.equals("cancelled")) {
-            throw new IllegalArgumentException("cannot cancel or expire an expired link");
-        }
-
-        // 4. Update core state variables
-        long currentUnixTime = System.currentTimeMillis() / 1000L;
-        paymentLink.setStatus("cancelled");
-        paymentLink.setCancelledAt(currentUnixTime);
-        paymentLink.setUpdatedAt(currentUnixTime);
-
-        paymentLinkRepository.save(paymentLink);
-
-        // 5. Delegate to retrieval logic to get full stitched table response
-        return this.getPaymentLinkById(id);
-    }*/
 
 
     // Add this method inside your PaymentLinkServiceImpl class
